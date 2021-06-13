@@ -1,0 +1,482 @@
+---
+title: "Structure your app"
+subtitle: "Introduction to Shiny modules"
+author: "Jonas Hagenberg"
+institute: "useR!2021"
+date: "07.07.2021"
+output:
+  xaringan::moon_reader:
+    css: xaringan-themer.css
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(xaringanthemer)
+style_duo_accent(
+  primary_color = "#1a5f96",
+  secondary_color = "#03A696",
+  code_inline_background_color = "#f8f8f8"
+)
+```
+
+# Recap: reactive programming
+- usual way in `R`: procedural
+
+```{r, eval = FALSE}
+n <- 1
+result <- 1 + n
+n <- 2
+result <- 1 + n
+```
+
+$\rightarrow$ tell what to do and when
+
+--
+
+- *reactive programming*: define how to do something
+
+---
+
+# `reactive`s
+- define a rule how something is calculated
+
+```{r, eval = FALSE}
+result <- reactive({
+  1 + input$n
+})
+```
+
+--
+
+- one defines rules how code is executed
+- updates itself when a reactive value is changed
+- lazy evaluation TODO: what does it mean exactly?
+- can think of a homework assignment
+
+```{r, eval = FALSE}
+latest_homework <- reactive({
+  # do the homework on input$page
+})
+```
+
+???
+
+the teacher will tell the students on which page they have to do the
+homework, the students don't have to check by themselves and won't do anything
+until the teacher changes input$page
+
+---
+
+# `observe`/`observeEvent`
+- monitor one/several reactive values
+- reexecute the code when something changed
+- can think of a student checking if the teacher is approaching
+
+```{r, eval = FALSE}
+observeEvent(input$lookout, {
+  # all students back to their place
+})
+```
+
+---
+
+# Comparison
+`reactive()`          | `observeEvent()`
+--------------------- | ---------------------
+Callable              | Not callable
+Returns a value       | No return value
+Lazy                  | Eager
+Cached                | _N/A_
+
+- action with side effect: `observeEvent()`
+- calculation with return value: `reactive()`
+
+???
+
+taken from Joey Cheng's reactivity talk, still good introduction
+
+---
+
+# Ways to reduce code complexity
+
+- use a style guide (e.g. tidyverse style guide)
+
+--
+
+- use meaningful names, e.g. `ns` <  `new_students` < `table_new_students`
+
+--
+
+- use meaningful comments (why did you do something this way?), e.g. when you
+define in `renderDT` which columns are editable by its column number, specify
+the column names in the comment
+
+--
+
+- code reuse -> write functions
+
+--
+
+- document the functions -> let you help you by `roxygen2`
+
+--
+
+- don't put too much functionality into one function/`reactive`/`render*` call
+
+--
+
+- use modules
+
+---
+
+# What are Shiny modules?
+
+.center[![An image of a circuit board with some electronic components and a connector on the left, as well as buttons and a display on the right.](images/complete_circuitboard.svg)]
+
+---
+
+## Split your code up
+.pull-left[![An image of a circuit board with only the buttons and a connector](images/circuitboard_part2.svg)]
+.pull-right[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
+.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]
+
+???
+
+- split up the code into several parts with both ui and server parts and manage
+the modules from the main app
+- can think of it as a "mini shiny app" with a few additional nuts and bolts to
+make it work
+
+---
+
+## General structure
+main app:
+```{r, eval = FALSE}
+# define the UI part
+ui <- fluidPage(
+  # other UI elements
+  # ...
+  # module UI
+* module_UI("my_id")
+)
+
+# define the server part
+server <- function(input, output, session) {
+  # other logic
+  # ...
+  # module logic
+* module_server("my_id")
+}
+
+shinyApp(ui, server)
+```
+
+---
+
+## General structure
+main app:
+```{r, eval = FALSE}
+# define the UI part
+ui <- fluidPage(
+  # other UI elements
+  # ...
+  # module UI
+  module_UI("my_id")
+* module_UI("another_id")
+)
+
+# define the server part
+server <- function(input, output, session) {
+  # other logic
+  # ...
+  # module logic
+  module_server("my_id")
+* module_server("another_id")
+}
+
+shinyApp(ui, server)
+```
+
+???
+
+- here you see the UI and server part of the module being called.
+The code within a module can be reused by calling it several times with different IDs
+- the IDs define the namespace for the module; I will talk about this in a minute
+
+---
+
+## Module structure
+```{r, eval = FALSE}
+# define the UI part
+module_UI <- function(id) {
+  ns <- NS(id)
+  
+  tagList(
+    # your UI elements here
+  )
+}
+
+# define the server part
+module_server <- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      # your logic here
+    }
+  )
+}
+```
+
+???
+
+this is what the scaffold of a module looks like
+
+---
+
+## Module structure
+```{r, eval = FALSE}
+# define the UI part
+module_UI <- function(id) {
+* ns <- NS(id)
+  
+  tagList(
+    # your UI elements here
+  )
+}
+
+# define the server part
+module_server <- function(id) {
+* moduleServer(
+    id,
+    function(input, output, session) {
+      # your logic here
+    }
+  )
+}
+```
+
+???
+
+here you see the setup for the namespacing
+
+---
+
+## Namespacing
+
+- a namespace defines a scope for a set of names
+
+--
+
+- known from packages, e.g. `dplyr::filter` vs. `stats::filter`
+
+--
+
+- `ns <- NS(id)` generates a function that assigns a namespace for every module
+instance based on its `id`
+
+--
+
+- in the `ui` part all `inputId`s/`outputId`s need to be wrapped with `ns`
+
+```{r, eval = FALSE}
+module_UI <- function(id) {
+  ns <- NS(id)
+  
+  tagList(
+    actionButton(
+*     inputId = ns("start_calculation"),
+      label = "calculate"
+    )
+  )
+}
+
+```
+
+--
+
+- in the `server` part **no** extra work
+
+---
+
+## Input values - 1
+
+To input values into a module, just add arguments to the `ui` or `server` function
+
+```{r, eval = FALSE}
+calculate_UI <- function(id, button_label) { #<<
+ ns <- NS(id)
+  
+  tagList(
+    actionButton(
+      inputId = ns("calculate"),
+      label = paste0("calculate ", button_label)
+    )
+  )
+}
+```
+
+---
+
+## Input values - 2
+
+```{r, eval = FALSE}
+table_server <- function(id, data) { #<<
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$table_1 <- renderTable({
+        data
+      })
+    }
+  )
+}
+```
+
+--
+
+How to pass *reactive objects* and return values see more later
+
+???
+
+later I will go into more detail about how to communicate with modules
+
+---
+
+## When to use modules?
+
+- you need **both** the `ui` and `server` part
+
+--
+
+- you want to test parts of your reactivity with `testServer`
+
+--
+
+- if you want to encapsulate code that only lives on the `ui` side or `server`
+side, simple functions are fine
+
+???
+
+while for `server` code, it's easier to write functions that don't have `reactive`s
+as inputs/outputs, otherwise it can get a bit complicated
+
+---
+
+## API change - 1
+
+Prior to `shiny` 1.5.0 there was a different way to write & call the `server` part
+
+--
+
+- current:
+```{r, eval = FALSE}
+module_server <- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text <- renderText({"This is a new module."})
+    }
+  )
+}
+
+server <- function(input, output, session) {
+* module_server(id = "my_new_module")
+}
+```
+
+---
+
+## API change - 2
+
+- old:
+```{r, eval = FALSE}
+module_server <- function(input, output, session) {
+  output$text <- renderText({"This is an old module."})
+}
+
+server <- function(input, output, session) {
+* callModule(module_server, id = "my_old_module")
+}
+```
+
+---
+
+# Module communication
+
+---
+
+## Example plot app
+```{r, eval = FALSE}
+ui <- fluidPage(
+  selectInput(
+    inputId = "independent_var",
+    label = "Independent variable",
+    choices = colnames(mtcars)
+  ),
+  plotOutput(
+    outputId = "pointplot"
+  )
+)
+
+server <- function(input, output, session) {
+  output$pointplot <- renderPlot({
+    plot(
+      x = mtcars[, input$independent_var],
+      y = mtcars$mpg
+    )
+  })
+}
+
+shinyApp(ui, server)
+```
+
+
+---
+
+Split up the Shiny app into several parts with both a `server` and a `ui` function
+
+
+.left-column[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
+.right-column[
+```{r, eval = FALSE}
+plot_UI <- function(id) {
+  ns <- NS(id)
+  
+  tagList(
+    plotOutput(
+      outputId = ns("pointplot")
+    )
+  )
+}
+
+plot_server <- function(id, independent_var) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$pointplot <- renderPlot({
+        plot(
+          x = mtcars[, independent_var()],
+          y = mtcars$mpg
+        )
+      })
+    }
+  )
+}
+
+```
+
+]
+
+---
+
+The modules have a defined API to input/output objects
+
+.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]

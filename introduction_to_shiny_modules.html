@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Structure your app</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Jonas Hagenberg" />
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Structure your app
+## Introduction to Shiny modules
+### Jonas Hagenberg
+### useR!2021
+### 07.07.2021
+
+---
+
+
+
+
+
+
+# Recap: reactive programming
+- usual way in `R`: procedural
+
+
+```r
+n &lt;- 1
+result &lt;- 1 + n
+n &lt;- 2
+result &lt;- 1 + n
+```
+
+`\(\rightarrow\)` tell what to do and when
+
+--
+
+- *reactive programming*: define how to do something
+
+---
+
+# `reactive`s
+- define a rule how something is calculated
+
+
+```r
+result &lt;- reactive({
+  1 + input$n
+})
+```
+
+--
+
+- one defines rules how code is executed
+- updates itself when a reactive value is changed
+- lazy evaluation TODO: what does it mean exactly?
+- can think of a homework assignment
+
+
+```r
+latest_homework &lt;- reactive({
+  # do the homework on input$page
+})
+```
+
+???
+
+the teacher will tell the students on which page they have to do the
+homework, the students don't have to check by themselves and won't do anything
+until the teacher changes input$page
+
+---
+
+# `observe`/`observeEvent`
+- monitor one/several reactive values
+- reexecute the code when something changed
+- can think of a student checking if the teacher is approaching
+
+
+```r
+observeEvent(input$lookout, {
+  # all students back to their place
+})
+```
+
+---
+
+# Comparison
+`reactive()`          | `observeEvent()`
+--------------------- | ---------------------
+Callable              | Not callable
+Returns a value       | No return value
+Lazy                  | Eager
+Cached                | _N/A_
+
+- action with side effect: `observeEvent()`
+- calculation with return value: `reactive()`
+
+???
+
+taken from Joey Cheng's reactivity talk, still good introduction
+
+---
+
+# Ways to reduce code complexity
+
+- use a style guide (e.g. tidyverse style guide)
+
+--
+
+- use meaningful names, e.g. `ns` &lt;  `new_students` &lt; `table_new_students`
+
+--
+
+- use meaningful comments (why did you do something this way?), e.g. when you
+define in `renderDT` which columns are editable by its column number, specify
+the column names in the comment
+
+--
+
+- code reuse -&gt; write functions
+
+--
+
+- document the functions -&gt; let you help you by `roxygen2`
+
+--
+
+- don't put too much functionality into one function/`reactive`/`render*` call
+
+--
+
+- use modules
+
+---
+
+# What are Shiny modules?
+
+.center[![An image of a circuit board with some electronic components and a connector on the left, as well as buttons and a display on the right.](images/complete_circuitboard.svg)]
+
+---
+
+## Split your code up
+.pull-left[![An image of a circuit board with only the buttons and a connector](images/circuitboard_part2.svg)]
+.pull-right[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
+.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]
+
+???
+
+- split up the code into several parts with both ui and server parts and manage
+the modules from the main app
+- can think of it as a "mini shiny app" with a few additional bolts to make it
+work
+
+---
+
+## General structure
+main app:
+
+```r
+# define the UI part
+ui &lt;- fluidPage(
+  # other UI elements
+  # ...
+  # module UI
+* module_UI("my_id")
+)
+
+# define the server part
+server &lt;- function(input, output, session) {
+  # other logic
+  # ...
+  # module logic
+* module_server("my_id")
+}
+
+shinyApp(ui, server)
+```
+
+---
+
+## General structure
+main app:
+
+```r
+# define the UI part
+ui &lt;- fluidPage(
+  # other UI elements
+  # ...
+  # module UI
+  module_UI("my_id")
+* module_UI("another_id")
+)
+
+# define the server part
+server &lt;- function(input, output, session) {
+  # other logic
+  # ...
+  # module logic
+  module_server("my_id")
+* module_server("another_id")
+}
+
+shinyApp(ui, server)
+```
+
+???
+
+- here you see the UI and server part of the module being called.
+The code within a module can be reused by calling it several times with different IDs
+- the IDs define the namespace for the module; I will talk about this in a minute
+
+---
+
+## Module structure
+
+```r
+# define the UI part
+module_UI &lt;- function(id) {
+  ns &lt;- NS(id)
+  
+  tagList(
+    # your UI elements here
+  )
+}
+
+# define the server part
+module_server &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      # your logic here
+    }
+  )
+}
+```
+
+???
+
+this is what the scaffold of a module looks like
+
+---
+
+## Module structure
+
+```r
+# define the UI part
+module_UI &lt;- function(id) {
+* ns &lt;- NS(id)
+  
+  tagList(
+    # your UI elements here
+  )
+}
+
+# define the server part
+module_server &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      # your logic here
+    }
+  )
+}
+```
+
+???
+
+here you see the setup for the namespacing
+
+---
+
+## Namespacing
+
+- a namespace defines a scope for a set of names
+
+--
+
+- known from packages, e.g. `dplyr::filter` vs. `stats::filter`
+
+--
+
+- `ns &lt;- NS(id)` generates a function that assigns a namespace for every module
+instance based on its `id`
+
+--
+
+- in the `ui` part all `inputId`s/`outputId`s need to be wrapped with `ns`
+
+
+```r
+module_UI &lt;- function(id) {
+  ns &lt;- NS(id)
+  
+  tagList(
+    actionButton(
+      inputId = ns("start_calculation"),
+      label = "calculate"
+    )
+  )
+}
+```
+
+--
+
+- in the `server` part **no** extra work
+
+---
+
+## Input values - 1
+
+To input values into a module, just add arguments to the `ui` or `server` function
+
+
+```r
+*calculate_UI &lt;- function(id, button_label) {
+ ns &lt;- NS(id)
+  
+  tagList(
+    actionButton(
+      inputId = ns("calculate"),
+      label = paste0("calculate ", button_label)
+    )
+  )
+}
+```
+
+---
+
+## Input values - 2
+
+
+```r
+*table_server &lt;- function(id, data) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$table_1 &lt;- renderTable({
+        data
+      })
+    }
+  )
+}
+```
+
+--
+
+How to pass *reactive objects* and return values see more later
+
+???
+
+later I will go into more detail about how to communicate with modules
+
+---
+
+## When to use modules?
+
+- you need **both** the `ui` and `server` part
+
+--
+
+- you want to test parts of your reactivity with `testServer`
+
+--
+
+- if you want to encapsulate code that only lives on the `ui` side or `server`
+side, simple functions are fine
+
+???
+
+while for `server` code, it's easier to write functions that don't have `reactive`s
+as inputs/outputs, otherwise it can get a bit complicated
+
+---
+
+## API change - 1
+
+Prior to `Shiny` 1.5.0 there was a different way to write &amp; call the `server` part
+
+--
+
+- old:
+
+```r
+module_server &lt;- function(input, output, session) {
+  output$text &lt;- renderText({"This is an old module."})
+}
+
+server &lt;- function(input, output, session) {
+* callModule(module_server, id = "my_old_module")
+}
+```
+
+---
+
+## API change - 2
+
+- new:
+
+```r
+module_server &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text &lt;- renderText({"This is a new module."})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+* module_server("my_new_module")
+}
+```
+
+---
+
+## Example plot app
+
+```r
+ui &lt;- fluidPage(
+  selectInput(
+    inputId = "independent_var",
+    label = "Independent variable",
+    choices = colnames(mtcars)
+  ),
+  plotOutput(
+    outputId = "pointplot"
+  )
+)
+
+server &lt;- function(input, output, session) {
+  output$pointplot &lt;- renderPlot({
+    plot(
+      x = mtcars[, input$independent_var],
+      y = mtcars$mpg
+    )
+  })
+}
+
+shinyApp(ui, server)
+```
+
+
+---
+
+Split up the Shiny app into several parts with both a `server` and a `ui` function
+
+
+.left-column[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
+.right-column[
+
+```r
+plot_UI &lt;- function(id) {
+  ns &lt;- NS(id)
+  
+  tagList(
+    plotOutput(
+      outputId = ns("pointplot")
+    )
+  )
+}
+
+plot_server &lt;- function(id, independent_var) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$pointplot &lt;- renderPlot({
+        plot(
+          x = mtcars[, independent_var()],
+          y = mtcars$mpg
+        )
+      })
+    }
+  )
+}
+```
+
+]
+
+---
+
+The modules have a defined API to input/output objects
+
+.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
