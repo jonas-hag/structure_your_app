@@ -152,8 +152,8 @@ the column names in the comment
 
 - split up the code into several parts with both ui and server parts and manage
 the modules from the main app
-- can think of it as a "mini shiny app" with a few additional bolts to make it
-work
+- can think of it as a "mini shiny app" with a few additional nuts and bolts to
+make it work
 
 ---
 
@@ -258,7 +258,7 @@ module_UI &lt;- function(id) {
 
 # define the server part
 module_server &lt;- function(id) {
-  moduleServer(
+* moduleServer(
     id,
     function(input, output, session) {
       # your logic here
@@ -297,7 +297,7 @@ module_UI &lt;- function(id) {
   
   tagList(
     actionButton(
-      inputId = ns("start_calculation"),
+*     inputId = ns("start_calculation"),
       label = "calculate"
     )
   )
@@ -378,9 +378,30 @@ as inputs/outputs, otherwise it can get a bit complicated
 
 ## API change - 1
 
-Prior to `Shiny` 1.5.0 there was a different way to write &amp; call the `server` part
+Prior to `shiny` 1.5.0 there was a different way to write &amp; call the `server` part
 
 --
+
+- current:
+
+```r
+module_server &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text &lt;- renderText({"This is a new module."})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+* module_server(id = "my_new_module")
+}
+```
+
+---
+
+## API change - 2
 
 - old:
 
@@ -396,26 +417,240 @@ server &lt;- function(input, output, session) {
 
 ---
 
-## API change - 2
+# Module communication
 
-- new:
+- pass `reactive`s as inputs to modules
+- return `reactive`s as output of modules
+
+---
+
+## `reactive` inputs - 1
+What's wrong with this?
+
+```r
+module_server &lt;- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text &lt;- renderText({result})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+  test &lt;- reactiveVal(1)
+  observeEvent(input$add, {
+    test(test() + 1)
+  })
+  module_server(id = "my_id", result = test())
+}
+```
+
+---
+
+## `reactive` inputs - 1
+What's wrong with this?
+
+```r
+module_server &lt;- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text &lt;- renderText({result})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+  test &lt;- reactiveVal(1)
+  observeEvent(input$add, {
+    test(test() + 1)
+  })
+* module_server(id = "my_id", result = test())
+}
+```
+
+---
+
+## `reactive` inputs - 2
+.center[Always input **unevaluated** reactive values into modules!]
+
+???
+
+I can't stress this enough, if you only take one message with you from the
+tutorial, then this!
+
+---
+
+## `reactive` inputs - 3
+
+
+```r
+server &lt;- function(input, output, session) {
+  test &lt;- reactiveVal(1)
+  morevals &lt;- reactiveValues(test = 1)
+  
+  module_server(id = "id_1", result = test)   # works
+  module_server(id = "id_2", result = test()) # doesn't work
+  
+  module_server(id = "id_3", result = morevals)      # works
+  module_server(id = "id_4", result = morevals$test) # doesn't work
+  
+  module_server(id = "id_5",
+                result = reactive({input$test}))  # works
+  module_server(id = "id_6", result = input$test) # doesn't work
+  
+}
+```
+
+
+
+???
+
+- reactives are just functions, and when you evaluate them they determine their
+current value (therefore you need the brackets)
+- this means that just input the name of the reactive without the brackets
+- `input$name` is a special case
+
+---
+
+## `reactive` inputs - 4
+You need to correctly evaluate the reactive value in the module:
+
+
+```r
+# reactiveVal
+module_server &lt;- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+*     output$text &lt;- renderText({result()})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+  test &lt;- reactiveVal(1)
+  observeEvent(input$add, {
+    test(test() + 1)
+  })
+* module_server(id = "my_id", result = test)
+}
+```
+
+---
+
+## `reactive` inputs - 5
+You need to correctly evaluate the reactive value in the module:
+
+
+```r
+# reactiveValues
+module_server &lt;- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+*     output$text &lt;- renderText({result$test})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+  morevals &lt;- reactiveValues(test = 1)
+  observeEvent(input$add, {
+    morevals$test &lt;- morevals$test + 1
+  })
+* module_server(id = "my_id", result = morevals)
+}
+```
+
+---
+
+## `reactive` inputs - 6
+You need to correctly evaluate the reactive value in the module:
+
+
+```r
+# input
+module_server &lt;- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+*     output$text &lt;- renderText({result()})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+
+* module_server(id = "my_id", result = reactive({input$test}))
+}
+```
+
+---
+
+## Output values from modules - 1
+
+Use `return` in the module and assign the value in the calling environment:
+
 
 ```r
 module_server &lt;- function(id) {
   moduleServer(
     id,
     function(input, output, session) {
-      output$text &lt;- renderText({"This is a new module."})
+      module_val &lt;- reactiveVal(10)
+*     return(module_val)
     }
   )
 }
 
 server &lt;- function(input, output, session) {
-* module_server("my_new_module")
+
+* res_from_module &lt;- module_server(id = "my_id")
+* output$text &lt;- renderText({res_from_module()})
+}
+```
+--
+Again: only return **unevaluated** `reactive`s
+
+???
+
+- the same as for inputs: reactives needs to be unevaluated
+
+---
+
+## Output values from modules - 2
+
+- for more return values use `list`
+- elements from `input` need to be wrapped in `reactive`
+
+
+```r
+module_server &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      return(
+        list(
+*         a = reactive({input$a}),
+*         b = reactive({input$b})
+        ))
+    }
+  )
+}
+server &lt;- function(input, output, session) {
+  
+* res_from_module &lt;- module_server(id = "my_id")
+  output$text &lt;- renderText({
+*   res_from_module$a() + res_from_module$b()
+  })
 }
 ```
 
 ---
+
+
 
 ## Example plot app
 

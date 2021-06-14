@@ -1,3 +1,12 @@
+# Exercise 1
+# modularise the app functionality:
+# - Write a module that displays a dataset as a DT table. If the summary checkbox
+#   is ticked, instead of the raw data show the summary table based on the
+#   summary_column selection
+# - the module should have a dataset input argument
+# - write an app that shows the table for the mtcars, diamonds and CO2 dataset
+# - for this, use the module
+
 library(shiny)
 library(DT)
 library(dplyr)

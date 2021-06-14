@@ -411,7 +411,230 @@ server <- function(input, output, session) {
 
 # Module communication
 
+- pass `reactive`s as inputs to modules
+- return `reactive`s as output of modules
+
 ---
+
+## `reactive` inputs - 1
+What's wrong with this?
+```{r, eval = FALSE}
+module_server <- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text <- renderText({result})
+    }
+  )
+}
+
+server <- function(input, output, session) {
+  test <- reactiveVal(1)
+  observeEvent(input$add, {
+    test(test() + 1)
+  })
+  module_server(id = "my_id", result = test())
+}
+```
+
+---
+
+## `reactive` inputs - 1
+What's wrong with this?
+```{r, eval = FALSE}
+module_server <- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text <- renderText({result})
+    }
+  )
+}
+
+server <- function(input, output, session) {
+  test <- reactiveVal(1)
+  observeEvent(input$add, {
+    test(test() + 1)
+  })
+* module_server(id = "my_id", result = test())
+}
+```
+
+---
+
+## `reactive` inputs - 2
+.center[Always input **unevaluated** reactive values into modules!]
+
+???
+
+I can't stress this enough, if you only take one message with you from the
+tutorial, then this!
+
+---
+
+## `reactive` inputs - 3
+
+```{r, eval = FALSE}
+server <- function(input, output, session) {
+  test <- reactiveVal(1)
+  morevals <- reactiveValues(test = 1)
+  
+  module_server(id = "id_1", result = test)   # works
+  module_server(id = "id_2", result = test()) # doesn't work
+  
+  module_server(id = "id_3", result = morevals)      # works
+  module_server(id = "id_4", result = morevals$test) # doesn't work
+  
+  module_server(id = "id_5",
+                result = reactive({input$test}))  # works
+  module_server(id = "id_6", result = input$test) # doesn't work
+  
+}
+```
+
+
+
+???
+
+- reactives are just functions, and when you evaluate them they determine their
+current value (therefore you need the brackets)
+- this means that just input the name of the reactive without the brackets
+- `input$name` is a special case
+
+---
+
+## `reactive` inputs - 4
+You need to correctly evaluate the reactive value in the module:
+
+```{r, eval = FALSE}
+# reactiveVal
+module_server <- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text <- renderText({result()}) #<<
+    }
+  )
+}
+
+server <- function(input, output, session) {
+  test <- reactiveVal(1)
+  observeEvent(input$add, {
+    test(test() + 1)
+  })
+  module_server(id = "my_id", result = test) #<<
+}
+```
+
+---
+
+## `reactive` inputs - 5
+You need to correctly evaluate the reactive value in the module:
+
+```{r, eval = FALSE}
+# reactiveValues
+module_server <- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text <- renderText({result$test}) #<<
+    }
+  )
+}
+
+server <- function(input, output, session) {
+  morevals <- reactiveValues(test = 1)
+  observeEvent(input$add, {
+    morevals$test <- morevals$test + 1
+  })
+  module_server(id = "my_id", result = morevals) #<<
+}
+```
+
+---
+
+## `reactive` inputs - 6
+You need to correctly evaluate the reactive value in the module:
+
+```{r, eval = FALSE}
+# input
+module_server <- function(id, result) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text <- renderText({result()}) #<<
+    }
+  )
+}
+
+server <- function(input, output, session) {
+
+  module_server(id = "my_id", result = reactive({input$test})) #<<
+}
+```
+
+---
+
+## Output values from modules - 1
+
+Use `return` in the module and assign the value in the calling environment:
+
+```{r, eval = FALSE}
+module_server <- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      module_val <- reactiveVal(10)
+      return(module_val) #<<
+    }
+  )
+}
+
+server <- function(input, output, session) {
+
+  res_from_module <- module_server(id = "my_id") #<<
+  output$text <- renderText({res_from_module()}) #<<
+}
+```
+
+Again: only return **unevaluated** `reactive`s
+
+???
+
+- the same as for inputs: reactives needs to be unevaluated
+
+---
+
+## Output values from modules - 2
+
+- for more return values use `list`
+- elements from `input` need to be wrapped in `reactive`
+
+```{r, eval = FALSE}
+module_server <- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      return(
+        list(
+          a = reactive({input$a}), #<<
+          b = reactive({input$b}) #<<
+        ))
+    }
+  )
+}
+server <- function(input, output, session) {
+  
+  res_from_module <- module_server(id = "my_id") #<<
+  output$text <- renderText({
+    res_from_module$a() + res_from_module$b() #<<
+  })
+}
+```
+
+---
+
+
 
 ## Example plot app
 ```{r, eval = FALSE}
