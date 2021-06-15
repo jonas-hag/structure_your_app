@@ -611,7 +611,7 @@ server &lt;- function(input, output, session) {
 * output$text &lt;- renderText({res_from_module()})
 }
 ```
---
+
 Again: only return **unevaluated** `reactive`s
 
 ???
@@ -650,7 +650,56 @@ server &lt;- function(input, output, session) {
 
 ---
 
+# Dynamically add modules
 
+- need to add both `server` and `ui` parts
+- 2 scenarios:
+  1. add modules once (probably at startup) - `lapply` is fine
+  2. add modules dynamically - use `insertUI` TODO: this is not correct, module UI is always added with `insertUI`
+- `insertUI` adds a `ui` part to a certain place on the page
+
+???
+
+- when you use `lapply` to add a certain number of modules, for example on an
+`observeEvent` from an `actionButton`, this would overwrite already existing
+`ui`s
+- this does not happen with `insertUI` - therefore preferable
+
+---
+
+## Topics to discuss
+
+- store reactive values from dynamically called modules
+- better in a reactive so that you could check if any value changed
+
+---
+
+## `renderUI`  within a module
+
+- usually no namespaceing within the module `server` needed
+- exemption: `renderUI`
+- access the `ns` function from the `session` object: `session$ns`
+
+
+```r
+module_server &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+*     ns &lt;- session$ns
+      output$column_UI &lt;- renderUI({
+        selectInput(
+*         inputId = ns("column"),
+          label = "show column",
+          choices = colnames(mtcars)
+        )
+      })
+    }
+  )
+}
+```
+
+---
 
 ## Example plot app
 
