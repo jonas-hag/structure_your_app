@@ -376,46 +376,6 @@ as inputs/outputs, otherwise it can get a bit complicated
 
 ---
 
-## API change - 1
-
-Prior to `shiny` 1.5.0 there was a different way to write &amp; call the `server` part
-
---
-
-- current:
-
-```r
-module_server &lt;- function(id) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      output$text &lt;- renderText({"This is a new module."})
-    }
-  )
-}
-
-server &lt;- function(input, output, session) {
-* module_server(id = "my_new_module")
-}
-```
-
----
-
-## API change - 2
-
-- old:
-
-```r
-module_server &lt;- function(input, output, session) {
-  output$text &lt;- renderText({"This is an old module."})
-}
-
-server &lt;- function(input, output, session) {
-* callModule(module_server, id = "my_old_module")
-}
-```
-
----
 
 # Module communication
 
@@ -653,17 +613,105 @@ server &lt;- function(input, output, session) {
 # Dynamically add modules
 
 - need to add both `server` and `ui` parts
-- 2 scenarios:
-  1. add modules once (probably at startup) - `lapply` is fine
-  2. add modules dynamically - use `insertUI` TODO: this is not correct, module UI is always added with `insertUI`
+- in `observeEvent`:
+  - call module server function
+  - add module ui with `insertUI`
 - `insertUI` adds a `ui` part to a certain place on the page
+
+--
+
+
+```r
+server &lt;- function(input, output, session) {
+  observeEvent(input$add_module, {
+*   module_server(id = paste0("id_", input$add_module))
+    insertUI(
+*     selector = "#add_here",
+*     ui = module_UI(id = paste0("id_", input$add_module))
+    )
+  })
+}
+```
+
 
 ???
 
-- when you use `lapply` to add a certain number of modules, for example on an
-`observeEvent` from an `actionButton`, this would overwrite already existing
-`ui`s
-- this does not happen with `insertUI` - therefore preferable
+- `insertUI` needs a selector where the UI gets added -&gt; more on next slide 
+- the easiest part is to place a `div` with an `id` in the main app `ui` (see exercise)
+
+---
+
+## `insertUI`/`removeUI`
+
+- the `selector` tells where to add the UI
+- shiny uses jQuery -&gt; jQuery selector syntax
+- easiest: `#myid` where `myid` is the `id` of a HTML element, e.g. from `fluidPage`
+or extra `div(id = "myid")` in the UI
+- can make sense to wrap the complete module UI in a `div` instead of `tagList`:
+
+```r
+module_UI &lt;- function(id) {
+  ns &lt;- NS(id)
+  div(
+    id = id,
+    # your UI elements here
+  )
+}
+```
+
+- `where`: where to place the UI relative to the selector
+
+???
+
+- tell the functions where to add the UI
+- for modules I find it the easiest to define a `div` in the main app where
+the modules are added
+- wrap module UI in `div` so that the complete UI can be accessed by the UI
+(important for removal)
+- important: `removeUI` does not remove any observers registered from the module
+ code which can be a performance problem if too many modules were added
+- would need more sophisticated methods for this, don't have time to address it
+
+---
+class: inverse
+
+- exercise 4: dynamically add modules
+- exercise 5: dynamically remove modules
+
+---
+
+## Store outputs of generated modules
+
+- return unevaluated reactives from module
+- store them in a `reactiveValues` object (works like a list)
+- evaluate every list entry
+
+
+```r
+server &lt;- function(input, output, session) {
+* mod_results &lt;- reactiveValues()
+  observeEvent(input$add_module, {
+    current_id &lt;- paste0("id_", input$add_module)
+*   mod_results[[current_id]] &lt;- module_server(id = current_id)
+    insertUI(
+      selector = "#add_here",
+      ui = module_UI(id = current_id)
+    )
+  })
+  
+  test &lt;- reactive({
+*   lapply(reactiveValuesToList(mod_results), function(current_module_output) {
+*     current_module_output()
+    })
+  })
+}
+```
+
+
+???
+
+- I think that this solution is not optimal, but haven't found anything else
+that works so far
 
 ---
 
@@ -674,11 +722,52 @@ server &lt;- function(input, output, session) {
 
 ---
 
+## API change - 1
+
+Prior to `shiny` 1.5.0 there was a different way to write &amp; call the `server` part
+
+--
+
+- current:
+
+```r
+module_server &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      output$text &lt;- renderText({"This is a new module."})
+    }
+  )
+}
+
+server &lt;- function(input, output, session) {
+* module_server(id = "my_new_module")
+}
+```
+
+---
+
+## API change - 2
+
+- old:
+
+```r
+module_server &lt;- function(input, output, session) {
+  output$text &lt;- renderText({"This is an old module."})
+}
+
+server &lt;- function(input, output, session) {
+* callModule(module_server, id = "my_old_module")
+}
+```
+
+---
+
 ## `renderUI`  within a module
 
 - usually no namespaceing within the module `server` needed
 - exemption: `renderUI`
-- access the `ns` function from the `session` object: `session$ns`
+- access the `ns` function from the `session` object
 
 
 ```r
@@ -698,6 +787,11 @@ module_server &lt;- function(id) {
   )
 }
 ```
+
+---
+
+# Summary
+- always input/output **unevaluated** reactives (if something should react)
 
 ---
 
