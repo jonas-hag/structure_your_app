@@ -700,9 +700,10 @@ server &lt;- function(input, output, session) {
   })
   
   test &lt;- reactive({
-*   lapply(reactiveValuesToList(mod_results), function(current_module_output) {
-*     current_module_output()
-    })
+*   lapply(reactiveValuesToList(mod_results),
+*          function(current_module_output) {
+*            current_module_output()
+           })
   })
 }
 ```
@@ -712,13 +713,7 @@ server &lt;- function(input, output, session) {
 
 - I think that this solution is not optimal, but haven't found anything else
 that works so far
-
----
-
-## Topics to discuss
-
-- store reactive values from dynamically called modules
-- better in a reactive so that you could check if any value changed
+- I have an example of a complete app in the examples folder
 
 ---
 
@@ -790,8 +785,33 @@ module_server &lt;- function(id) {
 
 ---
 
+# What should be a module?
+
+--
+
+- something you repeat often (and needs UI &amp; server)
+
+--
+
+- parts where the reactivity should be tested separately
+
+--
+
+- large self-contained parts of an app (e.g. a tab)
+
+--
+
+- don't wrap single UI elements in a module
+
+---
+
 # Summary
 - always input/output **unevaluated** reactives (if something should react)
+
+---
+class: middle, center
+
+# Questions?
 
 ---
 

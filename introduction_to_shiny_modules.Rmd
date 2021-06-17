@@ -101,7 +101,7 @@ Cached                | _N/A_
 
 ???
 
-taken from Joey Cheng's reactivity talk, still good introduction
+taken from Joe Cheng's reactivity talk, still good introduction
 
 ---
 
@@ -305,6 +305,10 @@ module_UI <- function(id) {
 - in the `server` part **no** extra work
 
 ---
+class: inverse
+
+Livecoding: first Shiny module
+---
 
 ## Input values - 1
 
@@ -369,7 +373,11 @@ while for `server` code, it's easier to write functions that don't have `reactiv
 as inputs/outputs, otherwise it can get a bit complicated
 
 ---
+class: inverse
 
+Exercise 1: write your first module
+
+---
 
 # Module communication
 
@@ -536,6 +544,11 @@ server <- function(input, output, session) {
 ```
 
 ---
+class: inverted
+
+Exercise 2: reactive inputs
+
+---
 
 ## Output values from modules - 1
 
@@ -593,6 +606,11 @@ server <- function(input, output, session) {
   })
 }
 ```
+
+---
+class: inverted
+
+Exercise 3: reactive outputs
 
 ---
 
@@ -700,6 +718,43 @@ that works so far
 
 ---
 
+# Nesting
+
+- you can & should nest modules
+  - code reuse
+  - modules that define bigger chunks of your app
+- module UI calls within another module needs `ns`
+
+```{r, eval = FALSE}
+outer_module_UI <- function(id) {
+  ns <- NS(id)
+  tagList(
+    inner_module_UI(id = ns("my_id")) #<<
+  )
+}
+```
+
+
+
+???
+
+- nesting is good when you have some functionality you want to use in several
+parts/modules
+- create modules that include bigger chunks of your app (e.g. a tab/page), then
+you can have other modules in this module
+- SHOW example app
+
+---
+
+# Where does a module live?
+
+- in `app.R` just above `ui`/`server`
+- in an extra folder, `source` the scripts in the main app before calling the
+main `ui`/`server` functions
+- in a package
+
+---
+
 ## API change - 1
 
 Prior to `shiny` 1.5.0 there was a different way to write & call the `server` part
@@ -765,75 +820,33 @@ module_server <- function(id) {
 
 ---
 
+# What should be a module?
+
+--
+
+- something you repeat often (and needs UI & server)
+
+--
+
+- parts where the reactivity should be tested separately
+
+--
+
+- large self-contained parts of an app (e.g. a tab)
+
+--
+
+- don't wrap single UI elements in a module
+
+---
+
 # Summary
+
+- don't forget `ns` in the UI
 - always input/output **unevaluated** reactives (if something should react)
+- to dynamically add modules: `insertUI`/`removeUI`
 
 ---
+class: inverted, middle, center
 
-## Example plot app
-```{r, eval = FALSE}
-ui <- fluidPage(
-  selectInput(
-    inputId = "independent_var",
-    label = "Independent variable",
-    choices = colnames(mtcars)
-  ),
-  plotOutput(
-    outputId = "pointplot"
-  )
-)
-
-server <- function(input, output, session) {
-  output$pointplot <- renderPlot({
-    plot(
-      x = mtcars[, input$independent_var],
-      y = mtcars$mpg
-    )
-  })
-}
-
-shinyApp(ui, server)
-```
-
-
----
-
-Split up the Shiny app into several parts with both a `server` and a `ui` function
-
-
-.left-column[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
-.right-column[
-```{r, eval = FALSE}
-plot_UI <- function(id) {
-  ns <- NS(id)
-  
-  tagList(
-    plotOutput(
-      outputId = ns("pointplot")
-    )
-  )
-}
-
-plot_server <- function(id, independent_var) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      output$pointplot <- renderPlot({
-        plot(
-          x = mtcars[, independent_var()],
-          y = mtcars$mpg
-        )
-      })
-    }
-  )
-}
-
-```
-
-]
-
----
-
-The modules have a defined API to input/output objects
-
-.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]
+# Questions?
