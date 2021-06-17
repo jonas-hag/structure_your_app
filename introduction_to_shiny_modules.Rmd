@@ -26,6 +26,21 @@ style_duo_accent(
   code_inline_background_color = "#f8f8f8"
 )
 ```
+class: inverse, center, middle
+
+# Better shiny code
+
+???
+
+- who doesn't know it? your app.R files gets longer and longer; you need to
+write code repeatedly; you'd like to use this nifty functionality from the one
+app you've written half a year ago in your current app...
+- I'll show you how to use modules to solve these problems
+- first: recap of reactive programming, then introduction to modules, pass
+values to modules & return values, dynamically generate modules
+- please ask questions in between, you can use the feature "raise hand"
+
+---
 
 # Recap: reactive programming
 - usual way in `R`: procedural
@@ -57,8 +72,7 @@ result <- reactive({
 --
 
 - one defines rules how code is executed
-- updates itself when a reactive value is changed
-- lazy evaluation TODO: what does it mean exactly?
+- updates itself when a reactive value is changed (lazy evaluation)
 - can think of a homework assignment
 
 ```{r, eval = FALSE}
@@ -94,7 +108,6 @@ observeEvent(input$lookout, {
 Callable              | Not callable
 Returns a value       | No return value
 Lazy                  | Eager
-Cached                | _N/A_
 
 - action with side effect: `observeEvent()`
 - calculation with return value: `reactive()`
@@ -144,9 +157,7 @@ the column names in the comment
 ---
 
 ## Split your code up
-.pull-left[![An image of a circuit board with only the buttons and a connector](images/circuitboard_part2.svg)]
-.pull-right[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
-.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]
+.center[![A diagram; on the left: a purple rectangle that stands for the app.R which is separated into ui and server areas; in the middle: an orange rectangle that stands for the module code which is separated into ui and server areas; on the right a purple rectangle that denotes the app.R with ui and server areas, with the orange module ui in the app ui area and the orange module server in the app server area](images/app_to_module.svg)]
 
 ???
 
@@ -159,51 +170,61 @@ make it work
 
 ## General structure
 main app:
+.pull-left[
 ```{r, eval = FALSE}
 # define the UI part
 ui <- fluidPage(
   # other UI elements
   # ...
   # module UI
-* module_UI("my_id")
+* module_UI(id = "id_1")
 )
 
 # define the server part
-server <- function(input, output, session) {
+server <- function(input, output,
+                   session) {
   # other logic
   # ...
   # module logic
-* module_server("my_id")
+* module_server(id = "id_1")
 }
 
 shinyApp(ui, server)
 ```
+]
 
 ---
 
 ## General structure
 main app:
+.pull-left[
 ```{r, eval = FALSE}
 # define the UI part
 ui <- fluidPage(
   # other UI elements
   # ...
   # module UI
-  module_UI("my_id")
-* module_UI("another_id")
+  module_UI(id = "id_1")
+* module_UI(id = "id_2")
 )
 
 # define the server part
-server <- function(input, output, session) {
+server <- function(input, output,
+                   session) {
   # other logic
   # ...
   # module logic
-  module_server("my_id")
-* module_server("another_id")
+  module_server(id = "id_1")
+* module_server(id = "id_2")
 }
 
 shinyApp(ui, server)
 ```
+]
+
+.pull-right[
+<img src="images/several_modules.svg" width=70%>
+]
 
 ???
 
@@ -269,7 +290,7 @@ here you see the setup for the namespacing
 
 ---
 
-## Namespacing
+## Namespacing - 1
 
 - a namespace defines a scope for a set of names
 
@@ -281,8 +302,21 @@ here you see the setup for the namespacing
 
 - `ns <- NS(id)` generates a function that assigns a namespace for every module
 instance based on its `id`
+```{r, eval = FALSE}
+ns <- NS("my_id")
+ns("selected_col")
+# my_id-selected_col
+```
 
---
+???
+
+- namespace: can basically think of it as a named room that makes it possible to
+reuse names, e.g. room 1 Jonas and room 2 Jonas
+- now this is needed for every instance (different id) of a module
+
+---
+
+## Namespacing - 2
 
 - in the `ui` part all `inputId`s/`outputId`s need to be wrapped with `ns`
 
@@ -307,7 +341,9 @@ module_UI <- function(id) {
 ---
 class: inverse
 
-Livecoding: first Shiny module
+Livecoding: my first Shiny app
+
+
 ---
 
 ## Input values - 1
@@ -544,7 +580,7 @@ server <- function(input, output, session) {
 ```
 
 ---
-class: inverted
+class: inverse
 
 Exercise 2: reactive inputs
 
@@ -608,9 +644,14 @@ server <- function(input, output, session) {
 ```
 
 ---
-class: inverted
+class: inverse
 
 Exercise 3: reactive outputs
+
+---
+class: inverse, center, middle
+
+# Break
 
 ---
 
@@ -622,7 +663,6 @@ Exercise 3: reactive outputs
   - add module ui with `insertUI`
 - `insertUI` adds a `ui` part to a certain place on the page
 
---
 
 ```{r, eval = FALSE}
 server <- function(input, output, session) {
@@ -843,10 +883,16 @@ module_server <- function(id) {
 # Summary
 
 - don't forget `ns` in the UI
+
+--
+
 - always input/output **unevaluated** reactives (if something should react)
+
+--
+
 - to dynamically add modules: `insertUI`/`removeUI`
 
 ---
-class: inverted, middle, center
+class: inverse, middle, center
 
 # Questions?

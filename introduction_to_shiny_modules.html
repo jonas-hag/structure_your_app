@@ -22,6 +22,21 @@ class: center, middle, inverse, title-slide
 
 
 
+class: inverse, center, middle
+
+# Better shiny code
+
+???
+
+- who doesn't know it? your app.R files gets longer and longer; you need to
+write code repeatedly; you'd like to use this nifty functionality from the one
+app you've written half a year ago in your current app...
+- I'll show you how to use modules to solve these problems
+- first: recap of reactive programming, then introduction to modules, pass
+values to modules &amp; return values, dynamically generate modules
+- please ask questions in between, you can use the feature "raise hand"
+
+---
 
 # Recap: reactive programming
 - usual way in `R`: procedural
@@ -55,8 +70,7 @@ result &lt;- reactive({
 --
 
 - one defines rules how code is executed
-- updates itself when a reactive value is changed
-- lazy evaluation TODO: what does it mean exactly?
+- updates itself when a reactive value is changed (lazy evaluation)
 - can think of a homework assignment
 
 
@@ -94,14 +108,13 @@ observeEvent(input$lookout, {
 Callable              | Not callable
 Returns a value       | No return value
 Lazy                  | Eager
-Cached                | _N/A_
 
 - action with side effect: `observeEvent()`
 - calculation with return value: `reactive()`
 
 ???
 
-taken from Joey Cheng's reactivity talk, still good introduction
+taken from Joe Cheng's reactivity talk, still good introduction
 
 ---
 
@@ -144,9 +157,7 @@ the column names in the comment
 ---
 
 ## Split your code up
-.pull-left[![An image of a circuit board with only the buttons and a connector](images/circuitboard_part2.svg)]
-.pull-right[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
-.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]
+.center[![A diagram; on the left: a purple rectangle that stands for the app.R which is separated into ui and server areas; in the middle: an orange rectangle that stands for the module code which is separated into ui and server areas; on the right a purple rectangle that denotes the app.R with ui and server areas, with the orange module ui in the app ui area and the orange module server in the app server area](images/app_to_module.svg)]
 
 ???
 
@@ -159,6 +170,7 @@ make it work
 
 ## General structure
 main app:
+.pull-left[
 
 ```r
 # define the UI part
@@ -166,24 +178,27 @@ ui &lt;- fluidPage(
   # other UI elements
   # ...
   # module UI
-* module_UI("my_id")
+* module_UI(id = "id_1")
 )
 
 # define the server part
-server &lt;- function(input, output, session) {
+server &lt;- function(input, output,
+                   session) {
   # other logic
   # ...
   # module logic
-* module_server("my_id")
+* module_server(id = "id_1")
 }
 
 shinyApp(ui, server)
 ```
+]
 
 ---
 
 ## General structure
 main app:
+.pull-left[
 
 ```r
 # define the UI part
@@ -191,21 +206,27 @@ ui &lt;- fluidPage(
   # other UI elements
   # ...
   # module UI
-  module_UI("my_id")
-* module_UI("another_id")
+  module_UI(id = "id_1")
+* module_UI(id = "id_2")
 )
 
 # define the server part
-server &lt;- function(input, output, session) {
+server &lt;- function(input, output,
+                   session) {
   # other logic
   # ...
   # module logic
-  module_server("my_id")
-* module_server("another_id")
+  module_server(id = "id_1")
+* module_server(id = "id_2")
 }
 
 shinyApp(ui, server)
 ```
+]
+
+.pull-right[
+&lt;img src="images/several_modules.svg" width=70%&gt;
+]
 
 ???
 
@@ -273,7 +294,7 @@ here you see the setup for the namespacing
 
 ---
 
-## Namespacing
+## Namespacing - 1
 
 - a namespace defines a scope for a set of names
 
@@ -286,7 +307,21 @@ here you see the setup for the namespacing
 - `ns &lt;- NS(id)` generates a function that assigns a namespace for every module
 instance based on its `id`
 
---
+```r
+ns &lt;- NS("my_id")
+ns("selected_col")
+# my_id-selected_col
+```
+
+???
+
+- namespace: can basically think of it as a named room that makes it possible to
+reuse names, e.g. room 1 Jonas and room 2 Jonas
+- now this is needed for every instance (different id) of a module
+
+---
+
+## Namespacing - 2
 
 - in the `ui` part all `inputId`s/`outputId`s need to be wrapped with `ns`
 
@@ -307,6 +342,12 @@ module_UI &lt;- function(id) {
 --
 
 - in the `server` part **no** extra work
+
+---
+class: inverse
+
+Livecoding: my first Shiny app
+
 
 ---
 
@@ -375,7 +416,11 @@ while for `server` code, it's easier to write functions that don't have `reactiv
 as inputs/outputs, otherwise it can get a bit complicated
 
 ---
+class: inverse
 
+Exercise 1: write your first module
+
+---
 
 # Module communication
 
@@ -548,6 +593,11 @@ server &lt;- function(input, output, session) {
 ```
 
 ---
+class: inverse
+
+Exercise 2: reactive inputs
+
+---
 
 ## Output values from modules - 1
 
@@ -609,6 +659,16 @@ server &lt;- function(input, output, session) {
 ```
 
 ---
+class: inverse
+
+Exercise 3: reactive outputs
+
+---
+class: inverse, center, middle
+
+# Break
+
+---
 
 # Dynamically add modules
 
@@ -618,7 +678,6 @@ server &lt;- function(input, output, session) {
   - add module ui with `insertUI`
 - `insertUI` adds a `ui` part to a certain place on the page
 
---
 
 
 ```r
@@ -717,6 +776,44 @@ that works so far
 
 ---
 
+# Nesting
+
+- you can &amp; should nest modules
+  - code reuse
+  - modules that define bigger chunks of your app
+- module UI calls within another module needs `ns`
+
+
+```r
+outer_module_UI &lt;- function(id) {
+  ns &lt;- NS(id)
+  tagList(
+*   inner_module_UI(id = ns("my_id"))
+  )
+}
+```
+
+
+
+???
+
+- nesting is good when you have some functionality you want to use in several
+parts/modules
+- create modules that include bigger chunks of your app (e.g. a tab/page), then
+you can have other modules in this module
+- SHOW example app
+
+---
+
+# Where does a module live?
+
+- in `app.R` just above `ui`/`server`
+- in an extra folder, `source` the scripts in the main app before calling the
+main `ui`/`server` functions
+- in a package
+
+---
+
 ## API change - 1
 
 Prior to `shiny` 1.5.0 there was a different way to write &amp; call the `server` part
@@ -806,83 +903,21 @@ module_server &lt;- function(id) {
 ---
 
 # Summary
+
+- don't forget `ns` in the UI
+
+--
+
 - always input/output **unevaluated** reactives (if something should react)
 
+--
+
+- to dynamically add modules: `insertUI`/`removeUI`
+
 ---
-class: middle, center
+class: inverse, middle, center
 
 # Questions?
-
----
-
-## Example plot app
-
-```r
-ui &lt;- fluidPage(
-  selectInput(
-    inputId = "independent_var",
-    label = "Independent variable",
-    choices = colnames(mtcars)
-  ),
-  plotOutput(
-    outputId = "pointplot"
-  )
-)
-
-server &lt;- function(input, output, session) {
-  output$pointplot &lt;- renderPlot({
-    plot(
-      x = mtcars[, input$independent_var],
-      y = mtcars$mpg
-    )
-  })
-}
-
-shinyApp(ui, server)
-```
-
-
----
-
-Split up the Shiny app into several parts with both a `server` and a `ui` function
-
-
-.left-column[![An image of a circuit board with only the display and a connector](images/circuitboard_part3.svg)]
-.right-column[
-
-```r
-plot_UI &lt;- function(id) {
-  ns &lt;- NS(id)
-  
-  tagList(
-    plotOutput(
-      outputId = ns("pointplot")
-    )
-  )
-}
-
-plot_server &lt;- function(id, independent_var) {
-  moduleServer(
-    id,
-    function(input, output, session) {
-      output$pointplot &lt;- renderPlot({
-        plot(
-          x = mtcars[, independent_var()],
-          y = mtcars$mpg
-        )
-      })
-    }
-  )
-}
-```
-
-]
-
----
-
-The modules have a defined API to input/output objects
-
-.center[![An image of a circuit board with some electronic components and several connectors](images/circuitboard_part1.svg)]
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
