@@ -42,6 +42,15 @@ values to modules & return values, dynamically generate modules
 
 ---
 
+class: inverse, center
+# Your shiny skills
+<br/><br/>
+<br/><br/>
+<br/><br/>
+beginner --------------------------------------------------------------------------------------- expert
+
+---
+
 # Recap: reactive programming
 - usual way in `R`: procedural
 
@@ -111,6 +120,11 @@ Lazy                  | Eager
 
 - action with side effect: `observeEvent()`
 - calculation with return value: `reactive()`
+
+.footnote[
+***
+[1] introduction to reactivity: https://www.rstudio.com/resources/shiny-dev-con/reactivity-pt-1-joe-cheng/
+]
 
 ???
 
@@ -258,7 +272,12 @@ module_server <- function(id) {
 
 ???
 
-this is what the scaffold of a module looks like
+- this is what the scaffold of a module looks like
+- a `tagList` creates a HTML tag object out of other R code/elements that
+constitute a HTML tag object
+- is needed so that several HTML tag objects are correctly translated in HTML
+from the R code
+- you could also use other high level UI defining elements, e.g. 
 
 ---
 
@@ -292,7 +311,11 @@ here you see the setup for the namespacing
 
 ## Namespacing - 1
 
-- a namespace defines a scope for a set of names
+- all IDs in a shiny app need to be unique
+
+--
+
+- use namespaces to make ID names unique for every module instance
 
 --
 
@@ -339,9 +362,15 @@ module_UI <- function(id) {
 - in the `server` part **no** extra work
 
 ---
-class: inverse
+class: inverse, center, middle
 
-Livecoding: my first Shiny app
+### Livecoding: my first Shiny app
+
+???
+
+- the `input` in the module is in the namespace of the module (but you don't)
+have to write it
+- it is different from the `input` you use in the main app
 
 
 ---
@@ -409,9 +438,14 @@ while for `server` code, it's easier to write functions that don't have `reactiv
 as inputs/outputs, otherwise it can get a bit complicated
 
 ---
-class: inverse
+class: inverse, center, middle
 
-Exercise 1: write your first module
+### Exercise 1: write your first module
+
+???
+
+best way is when one person can share their screen and the group does the
+exercise together
 
 ---
 
@@ -580,9 +614,9 @@ server <- function(input, output, session) {
 ```
 
 ---
-class: inverse
+class: inverse, center, middle
 
-Exercise 2: reactive inputs
+### Exercise 2: reactive inputs
 
 ---
 
@@ -596,6 +630,7 @@ module_server <- function(id) {
     id,
     function(input, output, session) {
       module_val <- reactiveVal(10)
+      # at the end of your module server code:
       return(module_val) #<<
     }
   )
@@ -613,6 +648,7 @@ Again: only return **unevaluated** `reactive`s
 ???
 
 - the same as for inputs: reactives needs to be unevaluated
+- put the `return` at the end of your module server code
 
 ---
 
@@ -644,9 +680,11 @@ server <- function(input, output, session) {
 ```
 
 ---
-class: inverse
+class: inverse, center, middle
 
-Exercise 3: reactive outputs
+### Exercise 3a/b/c: reactive outputs
+Choose 3a and then 3b for an introduction, choose 3c if you already feel
+confident about the concepts.
 
 ---
 class: inverse, center, middle
@@ -715,10 +753,10 @@ the modules are added
 - would need more sophisticated methods for this, don't have time to address it
 
 ---
-class: inverse
+class: inverse, center, middle
 
-- exercise 4: dynamically add modules
-- exercise 5: dynamically remove modules
+### Exercise 4: dynamically add modules
+### Exercise 5: dynamically remove modules
 
 ---
 

@@ -8,8 +8,8 @@ exercises, you need the following packages:
 
 - `shiny >= 1.5.0`
 - `DT`
-- `dplyr`
-- `ggplot2`
+- `dplyr >= 0.7.0`
+- `ggplot2 >= 3.0.0`
 
 ## Contents
 

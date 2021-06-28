@@ -4,10 +4,13 @@ can have a look in the [solutions folder](../solutions)
 
 ## Excercise 1
 modularise the app functionality:
-- Write a module that displays a dataset as a DT table. If the summary checkbox
+
+- basically, rewrite the functionality of the below app in a module
+- write a module that displays a dataset as a DT table. If the summary checkbox
 is ticked, instead of the raw data show the summary table based on the
 `summary_column` selection
-- the module should have a dataset input argument
+- the module should have a dataset input argument (hint: think about which of
+the module `UI`/`server` functions need this argument)
 - write an app that shows the table for the `mtcars`, `diamonds` and `CO2` dataset
 - for this, use the module
 
@@ -62,13 +65,33 @@ shinyApp(ui, server)
 summary argument where you pass the summary value from the main app
 - now all datasets should change from raw view to summary view simultaneously
 
-## Exercise 3
+## Exercise 3a
 - rewrite the code from exercise 2 so that the module returns the selected
-column reactively and also the mean of the selected column
+column name reactively
+- in the main app, use this module for `mtcars`
+- in the main app, show the column name that is selected in the module in a
+`textOutput`
+
+## Exercise 3b
+- rewrite the code from exercise 3a so that the module also returns the mean of
+the selected column
 - to calculate the mean within the module, use a `reactive`,
 e.g. `mean_column <- reactive({})`
+- in the main app, show the mean of the selected column in a `textOutput` below
+the column name
+
+## Exercise 3c
+if you didn't do the two previous exercises:
+
+- rewrite the code from exercise 2 so that the module returns the selected
+column name reactively and also the mean of the selected column
+- to calculate the mean within the module, use a `reactive`,
+e.g. `mean_column <- reactive({})`
+
+if you did the previous exercises, start with the code from exercise 3b:
+
 - write another module that takes a dataset (non reactive) and a selected
-column (reactive) as inputs and plots a boxplot of the selected column
+column name (reactive) as inputs and plots a boxplot of the selected column
 - in the main app, use these two modules for `mtcars` so that the column that
 is selected in the table module is passed to the plot module
 
@@ -78,9 +101,10 @@ is selected in the table module is passed to the plot module
 from the `mtcars` dataset and an `actionButton` to add a module
 - when the module is created, the module should include the selected column
 at creation time and shouldn't change afterwards (not reactive!)
+
 hint:
-- include a mechanism so that the added modules have unique IDs (in best case
- sequential)
+
+- include a mechanism so that the added modules have unique IDs
 
 ```r
 library(shiny)
@@ -128,3 +152,7 @@ graph2_server <- function(id, column) {
 to remove the last added module
 - the removal should work repeatedly until no module is left
 - one should be possible to add modules at any point
+
+hint:
+
+- the module id naming needs to be sequential
