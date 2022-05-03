@@ -1,6 +1,10 @@
 # Structure your app: introduction to Shiny modules
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+
+
 This is the teaching material for the Shiny modules tutorial held at the
-[userR!2021](https://user2021.r-project.org/).
+[userR!2021](https://user2021.r-project.org/). [The recording is available at
+YouTube.](https://www.youtube.com/watch?v=oOYaHsPXLvs)
 
 ## Get started
 Clone the repository to your local machine and explore the material. To do the
@@ -20,8 +24,6 @@ the exercises)
 - [additional app examples](examples) for topics only briefly mentioned in the tutorial
 
 ## License
-Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
-
 This work is licensed under a
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
 
